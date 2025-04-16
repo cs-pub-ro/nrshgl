@@ -8,11 +8,19 @@ object v {
   val chiselCrossVersions = Map(
     "5.1.0" -> (ivy"org.chipsalliance::chisel:5.1.0", ivy"org.chipsalliance:::chisel-plugin:5.1.0"),
   )
+  val defaultChiselVersion = "5.1.0"
   val scalatest = ivy"org.scalatest::scalatest:3.2.0"
   val scalapar = ivy"org.scala-lang.modules::scala-parallel-collections:1.0.4"
+
+  val chiseltest = ivy"edu.berkeley.cs::chiseltest:5.0.2"
+
+  val sl = ivy"ro.upb.nrs::sl:1.0.0"
 }
 
-object nrshgl extends Cross[Nrshgl](v.chiselCrossVersions.keys.toSeq)
+object nrshgl extends Cross[Nrshgl](v.chiselCrossVersions.keys.toSeq) {
+  def defaultCrossValue = v.defaultChiselVersion
+  def default() : Nrshgl = apply(defaultCrossValue)
+}
 
 trait Nrshgl
   extends common.NrshglModule
@@ -20,7 +28,7 @@ trait Nrshgl
 
   override def scalaVersion = T(v.scala)
 
-  override def millSourcePath = os.pwd
+  override def millSourcePath = os.pwd / "nrshgl"
 
   def chiselModule = None
 
@@ -31,27 +39,56 @@ trait Nrshgl
   def chiselPluginIvy = Some(v.chiselCrossVersions(crossValue)._2)
 }
 
-object nrshgldut extends Cross[NrshglDut](v.chiselCrossVersions.keys.toSeq)
+object nrshgldut extends Cross[NrshglDut](v.chiselCrossVersions.keys.toSeq) {
+  def defaultCrossValue = v.defaultChiselVersion
+  def default() : NrshglDut = apply(defaultCrossValue)
+}
 
-trait nrshglDut
-  extends common.NrshglTestModule
-    with Cross.Module[String] {
+trait NrshglDut
+  extends TestModule
+    with common.HasChisel
+    with TestModule.ScalaTest
+    with Cross.Module[String]  {
 
   override def scalaVersion = T(v.scala)
 
-  override def millSourcePath = os.pwd / "tests"
+  override def millSourcePath = os.pwd / "nrshgl" / "test"
 
-  def nrshglModule = nrshgl(crossValue)
+  def nrshglModule: common.NrshglModule = nrshgl(crossValue)
 
-  def chiselModule = None
+  def chiselModule = nrshglModule.chiselModule
 
-  def chiselPluginJar = None
+  def chiselPluginJar: T[Option[PathRef]] = T(nrshglModule.chiselPluginJar())
 
-  def chiselIvy = Some(v.chiselCrossVersions(crossValue)._1)
+  def chiselIvy: Option[Dep] = nrshglModule.chiselIvy
 
-  def chiselPluginIvy = Some(v.chiselCrossVersions(crossValue)._2)
+  def chiselPluginIvy: Option[Dep] = nrshglModule.chiselPluginIvy
 
   def scalatestIvy = v.scalatest
 
   def scalaparIvy = v.scalapar
+
+  def chiselTestIvy = v.chiseltest
+
+  def slIvy = v.sl
+
+  override def moduleDeps = super.moduleDeps ++ Some(nrshglModule)
+
+  override def defaultCommandName() = "test"
+
+  override def ivyDeps = T(
+    super.ivyDeps() ++ Agg(
+      scalatestIvy,
+      scalaparIvy,
+      chiselTestIvy,
+      slIvy
+    )
+  )
+
+  override def repositoriesTask = T.task {
+    super.repositoriesTask() ++
+    Seq(
+      coursier.maven.MavenRepository("https://repo.repsy.io/mvn/sdcioc/nrs")
+    )
+  }
 }

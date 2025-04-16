@@ -1,7 +1,7 @@
 package ro.upb.nrs.hgl
 
 import chisel3._
-import chisel3.tester._
+import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
 import chiseltest.ChiselScalatestTester
 

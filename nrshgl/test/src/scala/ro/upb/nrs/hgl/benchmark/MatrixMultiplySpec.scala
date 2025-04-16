@@ -8,6 +8,7 @@ import java.io._
 import fixedpoint._
 import ro.upb.nrs.sl
 import ro.upb.nrs.hgl.performance
+import chiseltest._
 
 
 class MatrixMultiplyFloatP extends AnyFlatSpec with ChiselScalatestTester{
@@ -47,8 +48,8 @@ class MatrixMultiplyFloatP extends AnyFlatSpec with ChiselScalatestTester{
                 var matrix2filtered = matrix2.slice(1, 10).map(x => "b" + (ro.upb.nrs.sl.FixedFloatingPoint(x.toDouble).toBinaryString))
 
                 for (idx <- 0 until 3 * 3) {
-                    c.io.matrix1(idx).value := (matrix1filtered(idx).U)
-                    c.io.matrix2(idx).value := (matrix2filtered(idx).U)
+                    c.io.matrix1(idx).value.poke(matrix1filtered(idx).U)
+                    c.io.matrix2(idx).value.poke(matrix2filtered(idx).U)
                 }
 
                 val writer = new PrintWriter(new File(System.getProperty("user.dir") + s"/src/test/scala/ro/upb/nrs/hl/HNumberRepresentationSystem/FloatP/test$fileNo.out"))
@@ -232,7 +233,7 @@ class MatrixMultiplyFixedPoint extends AnyFlatSpec with ChiselScalatestTester{
 
                 for (idx <- 0 until 3 * 3) {
                     val x = c.io.matrixRes(idx).value.peek()
-                    writer.write(FixedPoint.toBigDecimal(x.litValue, 8.BP).toString + " ")
+                    writer.write(FixedPoint.toBigDecimal(x.litValue, 8).toString + " ")
                     if (idx % 3 == 2) {
                         writer.write("\n")
                     }
@@ -418,7 +419,7 @@ class MatrixMultiplyFixedPoint5X5 extends AnyFlatSpec with ChiselScalatestTester
 
                 for (idx <- 0 until 5 * 5) {
                     val x = c.io.matrixRes(idx).value.peek()
-                    writer.write(FixedPoint.toBigDecimal(x.litValue, 17.BP).toString + " ")
+                    writer.write(FixedPoint.toBigDecimal(x.litValue, 17).toString + " ")
                     if (idx % 5 == 4) {
                         writer.write("\n")
                     }

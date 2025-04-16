@@ -1,7 +1,9 @@
 package ro.upb.nrs.hgl.performance
 import chisel3._
-import chisel3.tester._
+import chisel3.testers._
+import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
+import fixedpoint._
 
 class FixedPointQDivTest extends AnyFlatSpec with ChiselScalatestTester{
     behavior of "FixedPointQOps"

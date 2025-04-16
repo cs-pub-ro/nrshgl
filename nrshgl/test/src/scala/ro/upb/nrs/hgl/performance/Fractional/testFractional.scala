@@ -1,6 +1,6 @@
 package ro.upb.nrs.hgl.performance
 import chisel3._
-import chisel3.tester._
+import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
 import chisel3.experimental.BundleLiterals._
 

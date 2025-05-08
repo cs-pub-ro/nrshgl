@@ -199,11 +199,13 @@ class DecoderFloatingPoint(exponentSize: Int, fractionSize: Int, size : Int, sof
 }
 
 
-class EncoderFloatingPoint(exponentSize: Int, fractionSize: Int, size : Int, softwareDebug : Boolean = false) extends Module {
+class EncoderFloatingPoint(exponentSize: Int, fractionSize: Int, size : Int, rounding: Option[RoundingType], softwareDebug : Boolean = false) extends Module {
     val io = IO(new Bundle {
         val binary = Output(UInt(size.W))
         val floatingPoint = Input(new FloatingPoint(exponentSize, fractionSize, softwareDebug))
+        val roundingType = if (rounding.isEmpty) Some(Input(UInt(3.W))) else None
     })
+
     if(softwareDebug) {
         printf("[EncoderFloatingPoint] io.floatingPoint.sign DEC: %d, io.floatingPoint.zero DEC: %d, io.floatingPoint.inf DEC: %d, io.floatingPoint.nan DEC: %d, io.floatingPoint.underflow DEC: %d, io.result.overflow DEC: %d, \n",
         io.floatingPoint.sign, io.floatingPoint.zero, io.floatingPoint.inf, io.floatingPoint.nan, io.floatingPoint.underflow, io.floatingPoint.overflow) 
@@ -898,7 +900,7 @@ class FloatingPointComparator(exponentSize: Int, fractionSize: Int, softwareDebu
     }
 }
 
-class FloatingPointRounding(rounding : RoundingType, softwareDebug : Boolean = false) extends Module {
+class FloatingPointRounding(softwareDebug : Boolean = false) extends Module {
     val io = IO(new Bundle {
         val addOne = Output(Bool())
         val l = Input(Bool())
@@ -906,14 +908,21 @@ class FloatingPointRounding(rounding : RoundingType, softwareDebug : Boolean = f
         val r = Input(Bool())
         val s = Input(Bool())
         val sign = Input(Bool())
+        val rounding = Input(UInt(3.W))
     })
-    rounding match {
-            case RoundUp => io.addOne := Mux(!io.sign & (io.g|io.r|io.s), 1.U, 0.U)
-            case RoundDown => io.addOne := Mux(io.sign & (io.g|io.r|io.s), 1.U, 0.U)
-            case RoundZero =>  io.addOne := 0.U
-            case RoundAwayZero =>  io.addOne := Mux(io.g|io.r|io.s, 1.U, 0.U)
-            case RoundEven => io.addOne := Mux(io.g&(io.r|io.s|io.l), 1.U, 0.U) 
-            case _ => io.addOne := 0.U
+
+    when(io.rounding === 0.U) {
+        io.addOne := Mux(!io.sign & (io.g|io.r|io.s), true.B, false.B)
+    } .elsewhen(io.rounding === 1.U) {
+        io.addOne := Mux(io.sign & (io.g|io.r|io.s), true.B, false.B) 
+    } .elsewhen(io.rounding === 2.U) {
+        io.addOne := 0.U
+    } .elsewhen(io.rounding === 3.U) {
+        io.addOne := Mux(io.g|io.r|io.s, true.B, false.B)
+    } .elsewhen(io.rounding === 4.U) {
+        io.addOne := Mux(io.g&(io.r|io.s|io.l), true.B, false.B)
+    } .otherwise {
+        io.addOne := 0.U
     }
     if(softwareDebug) printf("[FloatingPointRounding] l DEC: %d, g DEC: %d, r DEC: %d, s DEC: %d, addOne DEC: %d\n", io.l, io.g, io.r, io.s, io.addOne)
 }
@@ -1157,4 +1166,17 @@ class FloatingPointFusedMultiplication(
             shiftedBits, shiftedBits)
         }
     }
+}
+
+class IntegerToFloatingPoint(
+    integerSize: Int,
+    exponentSize: Int,
+    fractionSize: Int,
+) extends Module {
+    val io = IO(new Bundle {
+        val integer = Input(UInt(integerSize.W))
+        val sign = Input(Bool())
+        val rounding = Input(UInt(3.W))
+        val result = Output(new FloatingPoint(exponentSize, fractionSize))
+    })
 }

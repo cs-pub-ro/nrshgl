@@ -42,7 +42,7 @@ case class Posit(
             new EncoderPosit(
                 exponentSize,
                 size,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 softwareDebug
@@ -59,7 +59,7 @@ case class Posit(
             new EncoderPosit(
                 exponentSize,
                 size,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 softwareDebug
@@ -76,7 +76,7 @@ case class Posit(
             new EncoderPosit(
                 exponentSize,
                 size,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 softwareDebug
@@ -93,7 +93,7 @@ case class Posit(
             new EncoderPosit(
                 exponentSize,
                 size,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 softwareDebug
@@ -110,7 +110,7 @@ case class Posit(
             new EncoderPosit(
                 exponentSize,
                 size,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 softwareDebug
@@ -148,7 +148,7 @@ case class Posit(
         new EncoderPosit(
             this.exponentSize,
             floatingPointSize,
-            this.rounding,
+            Some(this.rounding),
             floatingPointExponentSize,
             floatingPointFractionSize,
             softwareDebug
@@ -405,7 +405,7 @@ class DecoderPosit(
 class EncoderPosit(
     exponentSize: Int,
     size: Int,
-    rounding : RoundingType,
+    rounding : Some[RoundingType],
     internalExponentSize : Int,
     internalFractionSize : Int,
     softwareDebug : Boolean = false
@@ -413,6 +413,7 @@ class EncoderPosit(
         internalExponentSize,
         internalFractionSize,
         size,
+        rounding,
         softwareDebug
     ) {
     val minimumInternalFractionSize = Posit.internalFractionSize(exponentSize, size)
@@ -524,13 +525,17 @@ class EncoderPosit(
         val partialBinary = Wire(UInt(size.W))
         
         //rounding
-		val roundingModule = Module(new FloatingPointRounding(rounding, softwareDebug))
+		val roundingModule = Module(new FloatingPointRounding(softwareDebug))
         roundingModule.io.sign := floatingPoint.sign
         roundingModule.io.l := absolutePartialBinary(0)
         roundingModule.io.g := floatingPoint.restBits(2)
         roundingModule.io.r := floatingPoint.restBits(1)
         roundingModule.io.s := floatingPoint.restBits(0)
         partialBinary := absolutePartialBinary +& roundingModule.io.addOne
+        io.roundingType match {
+            case Some(r) => roundingModule.io.rounding := r
+            case None => roundingModule.io.rounding := RoundingType.toUInt(rounding.get)
+        }
         io.binary := Mux(floatingPoint.sign, ~partialBinary +& 1.U, partialBinary)
         
         when(minimumInternalFractionSize.U > fractionSize) {//ussualy happens

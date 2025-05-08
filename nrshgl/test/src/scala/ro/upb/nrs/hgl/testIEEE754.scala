@@ -209,13 +209,13 @@ class MyTest extends AnyFlatSpec with ChiselScalatestTester {
   behavior of "MyModule"
 
     val exponent_size = 8
-    val fraction_size = 23
+    val sig_size = 24
     val rounding = RoundEven
-    val size = exponent_size + fraction_size + 1
+    val size = exponent_size + sig_size
 
   it should "pass" in {
-    test(new MulAddRecFNPipe(exponent_size, fraction_size, NRS_IEEE754)) { dut =>
-        val a = 1.0f
+    test(new MulAddRecFNPipe(exponent_size, sig_size, NRS_IEEE754)) { dut =>
+        val a = 3.0f
         val b = 1.0f
         val c = 6.0f
         val op = 1
@@ -231,7 +231,7 @@ class MyTest extends AnyFlatSpec with ChiselScalatestTester {
         dut.clock.step(1)
 
         val result = dut.io.out.peek()
-        println(s"Result: ${sl.IEEE754.apply(String.format("%32s", result.litValue.toString(2)).replace(' ', '0'), exponent_size, fraction_size, sl.RoundEven)}")
+        println(s"Result: ${sl.IEEE754.apply(String.format("%32s", result.litValue.toString(2)).replace(' ', '0'), exponent_size, sig_size - 1, sl.RoundEven)}")
 
         val expected_result = op match {
             case 0 => a * b + c

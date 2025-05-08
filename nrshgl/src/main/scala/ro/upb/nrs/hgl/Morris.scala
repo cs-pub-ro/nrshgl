@@ -43,7 +43,7 @@ case class Morris(
             new EncoderMorris(
                 gSize,
                 size,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 softwareDebug
@@ -60,7 +60,7 @@ case class Morris(
             new EncoderMorris(
                 gSize,
                 size,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 softwareDebug
@@ -77,7 +77,7 @@ case class Morris(
             new EncoderMorris(
                 gSize,
                 size,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 softwareDebug
@@ -94,7 +94,7 @@ case class Morris(
             new EncoderMorris(
                 gSize,
                 size,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 softwareDebug
@@ -112,7 +112,7 @@ case class Morris(
             new EncoderMorris(
                 gSize,
                 size,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 softwareDebug
@@ -150,7 +150,7 @@ case class Morris(
         new EncoderMorris(
             this.gSize,
             floatingPointSize,
-            this.rounding,
+            Some(this.rounding),
             floatingPointExponentSize,
             floatingPointFractionSize,
             softwareDebug
@@ -306,7 +306,7 @@ class DecoderMorris(
 class EncoderMorris(
     gSize: Int,
     size: Int,
-    rounding : RoundingType,
+    rounding : Option[RoundingType],
     internalExponentSize : Int,
     internalFractionSize : Int,
     softwareDebug : Boolean = false
@@ -314,6 +314,7 @@ class EncoderMorris(
         internalExponentSize,
         internalFractionSize,
         size,
+        rounding,
         softwareDebug
     ) {
     val minimumInternalFractionSize = Morris.internalFractionSize(gSize, size)
@@ -382,12 +383,16 @@ class EncoderMorris(
         partialBinary := (floatingPoint.sign ## gValue ## floatingPoint.exponentSign ## Fill(size-2-gSize, 0.U(1.W))) | exponentBits | mantissaBits
         
         //rounding
-		val roundingModule = Module(new FloatingPointRounding(rounding, softwareDebug))
+		val roundingModule = Module(new FloatingPointRounding(softwareDebug))
         roundingModule.io.sign := floatingPoint.sign
         roundingModule.io.l := partialBinary(0)
         roundingModule.io.g := floatingPoint.restBits(2)
         roundingModule.io.r := floatingPoint.restBits(1)
         roundingModule.io.s := floatingPoint.restBits(0)
+        io.roundingType match {
+            case Some(r) => roundingModule.io.rounding := r
+            case None => roundingModule.io.rounding := RoundingType.toUInt(rounding.get)
+        }
         io.binary := partialBinary +& roundingModule.io.addOne
 
         val exponent = Wire(UInt(minimumInternalExponentSize.W))

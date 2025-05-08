@@ -38,7 +38,7 @@ case class MorrisUnaryHEB(
 		val encode = Module(
             new EncoderMorrisUnaryHEB(
                 size,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 softwareDebug
@@ -54,7 +54,7 @@ case class MorrisUnaryHEB(
 		val encode = Module(
             new EncoderMorrisUnaryHEB(
                 size,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 softwareDebug
@@ -70,7 +70,7 @@ case class MorrisUnaryHEB(
 		val encode = Module(
             new EncoderMorrisUnaryHEB(
                 size,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 softwareDebug
@@ -86,7 +86,7 @@ case class MorrisUnaryHEB(
 		val encode = Module(
             new EncoderMorrisUnaryHEB(
                 size,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 softwareDebug
@@ -103,7 +103,7 @@ case class MorrisUnaryHEB(
 		val encode = Module(
             new EncoderMorrisUnaryHEB(
                 size,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 softwareDebug
@@ -139,7 +139,7 @@ case class MorrisUnaryHEB(
     ) : EncoderFloatingPoint = {
         new EncoderMorrisUnaryHEB(
             floatingPointSize,
-            this.rounding,
+            Some(this.rounding),
             floatingPointExponentSize,
             floatingPointFractionSize,
             softwareDebug
@@ -328,7 +328,7 @@ class DecoderMorrisUnaryHEB(
 
 class EncoderMorrisUnaryHEB(
     size: Int,
-    rounding : RoundingType,
+    rounding : Some[RoundingType],
     internalExponentSize : Int,
     internalFractionSize : Int,
     softwareDebug : Boolean = false
@@ -336,6 +336,7 @@ class EncoderMorrisUnaryHEB(
         internalExponentSize,
         internalFractionSize,
         size,
+        rounding,
         softwareDebug
     ) {
     val minimumInternalFractionSize = MorrisUnaryHEB.internalFractionSize(size)
@@ -453,12 +454,16 @@ class EncoderMorrisUnaryHEB(
         if(softwareDebug) printf("[EncoderMorrisUnaryHEB] fractionSize DEC: %d, fractionSize HEX %x\n", fractionSize, fractionSize)
         val partialBinary = Wire(UInt(size.W))
         //rounding
-		val roundingModule = Module(new FloatingPointRounding(rounding, softwareDebug))
+		val roundingModule = Module(new FloatingPointRounding(softwareDebug))
         roundingModule.io.sign := floatingPoint.sign
         roundingModule.io.l := partialBinary(0)
         roundingModule.io.g := floatingPoint.restBits(2)
         roundingModule.io.r := floatingPoint.restBits(1)
         roundingModule.io.s := floatingPoint.restBits(0)
+        io.roundingType match {
+            case Some(r) => roundingModule.io.rounding := r
+            case None => roundingModule.io.rounding := RoundingType.toUInt(rounding.get)
+        }
         partialBinary := (floatingPoint.sign ## Fill(size-1, 0.U(1.W))) | regimeBits | exponentBits | mantissaBits
 
         when(((exponentSize - binaryExponentSize) >= 1.U) && floatingPoint.exponentSign && (binaryExponentSize >= 1.U)) {

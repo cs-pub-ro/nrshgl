@@ -7,6 +7,7 @@ import chiseltest.ChiselScalatestTester
 
 import ro.upb.nrs.sl
 import ro.upb.nrs.benchmark
+import scala.runtime.RichInt
 
 
 class TestAdditionSingleIEEE754 extends AnyFlatSpec with ChiselScalatestTester{
@@ -202,4 +203,44 @@ class TestDivisionExhaustiveIEEE754 extends AnyFlatSpec with ChiselScalatestTest
 			}
         }
     }
+}
+
+class MyTest extends AnyFlatSpec with ChiselScalatestTester {
+  behavior of "MyModule"
+
+    val exponent_size = 8
+    val sig_size = 24
+    val rounding = RoundEven
+    val size = exponent_size + sig_size
+
+  it should "pass" in {
+    test(new MulAddRecFNPipe(exponent_size, sig_size, NRS_IEEE754)) { dut =>
+        val a = 3.0f
+        val b = 1.0f
+        val c = 6.0f
+        val op = 1
+
+        val a_bits = java.lang.Float.floatToIntBits(a)
+        val b_bits = java.lang.Float.floatToIntBits(b)
+        val c_bits = java.lang.Float.floatToIntBits(c)
+        
+        dut.io.op.poke(op.U)
+        dut.io.a.poke(a_bits.U)
+        dut.io.b.poke(b_bits.U)
+        dut.io.c.poke(c_bits.U)
+        dut.clock.step(1)
+
+        val result = dut.io.out.peek()
+        println(s"Result: ${sl.IEEE754.apply(String.format("%32s", result.litValue.toString(2)).replace(' ', '0'), exponent_size, sig_size - 1, sl.RoundEven)}")
+
+        val expected_result = op match {
+            case 0 => a * b + c
+            case 1 => a * b - c
+            case 2 => -(a * b) + c
+            case 3 => -(a * b) - c
+            case _ => throw new IllegalArgumentException("Invalid operation")
+        }
+        println(s"Expected result: $expected_result")
+    }
+  }
 }

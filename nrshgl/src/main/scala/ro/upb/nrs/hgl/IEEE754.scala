@@ -44,7 +44,7 @@ case class IEEE754(
             new EncoderIEEE754(
                 exponentSize,
                 fractionSize,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 size,
@@ -62,7 +62,7 @@ case class IEEE754(
             new EncoderIEEE754(
                 exponentSize,
                 fractionSize,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 size,
@@ -80,7 +80,7 @@ case class IEEE754(
             new EncoderIEEE754(
                 exponentSize,
                 fractionSize,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 size,
@@ -98,7 +98,7 @@ case class IEEE754(
             new EncoderIEEE754(
                 exponentSize,
                 fractionSize,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 size,
@@ -117,7 +117,7 @@ case class IEEE754(
             new EncoderIEEE754(
                 exponentSize,
                 fractionSize,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 size,
@@ -157,7 +157,7 @@ case class IEEE754(
         new EncoderIEEE754(
             this.exponentSize,
             this.fractionSize,
-            this.rounding,
+            Some(this.rounding),
             floatingPointExponentSize,
             floatingPointFractionSize,
             floatingPointSize,
@@ -288,7 +288,7 @@ class DecoderIEEE754(
 class EncoderIEEE754(
     exponentSize: Int,
     fractionSize: Int,
-    rounding : RoundingType,
+    rounding : Option[RoundingType],
     internalExponentSize : Int,
     internalFractionSize : Int,
     size : Int,
@@ -297,6 +297,7 @@ class EncoderIEEE754(
         internalExponentSize,
         internalFractionSize,
         size,
+        rounding,
         softwareDebug
     ) {
     val minimumInternalFractionSize = IEEE754.internalFractionSize(exponentSize, fractionSize)
@@ -355,12 +356,19 @@ class EncoderIEEE754(
         if(softwareDebug) printf("[EncoderIEEE754] partialBinary DEC: %d, partialBinary HEX %x\n", partialBinary, partialBinary)
         
         //rounding
-		val roundingModule = Module(new FloatingPointRounding(rounding, softwareDebug))
+        val roundingModule = Module(new FloatingPointRounding(softwareDebug))
+
         roundingModule.io.sign := floatingPoint.sign
         roundingModule.io.l := partialBinary(0)
         roundingModule.io.g := floatingPoint.restBits(2)
         roundingModule.io.r := floatingPoint.restBits(1)
         roundingModule.io.s := floatingPoint.restBits(0)
+
+        io.roundingType match {
+            case Some(r) => roundingModule.io.rounding := r
+            case None => roundingModule.io.rounding := RoundingType.toUInt(rounding.get)
+        }
+
         io.binary := partialBinary +& roundingModule.io.addOne
 
         /*

@@ -43,7 +43,7 @@ case class MorrisBiasHEB(
             new EncoderMorrisBiasHEB(
                 gSize,
                 size,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 softwareDebug
@@ -60,7 +60,7 @@ case class MorrisBiasHEB(
             new EncoderMorrisBiasHEB(
                 gSize,
                 size,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 softwareDebug
@@ -77,7 +77,7 @@ case class MorrisBiasHEB(
             new EncoderMorrisBiasHEB(
                 gSize,
                 size,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 softwareDebug
@@ -94,7 +94,7 @@ case class MorrisBiasHEB(
             new EncoderMorrisBiasHEB(
                 gSize,
                 size,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 softwareDebug
@@ -112,7 +112,7 @@ case class MorrisBiasHEB(
             new EncoderMorrisBiasHEB(
                 gSize,
                 size,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 softwareDebug
@@ -150,7 +150,7 @@ case class MorrisBiasHEB(
         new EncoderMorrisBiasHEB(
             this.gSize,
             floatingPointSize,
-            this.rounding,
+            Some(this.rounding),
             floatingPointExponentSize,
             floatingPointFractionSize,
             softwareDebug
@@ -337,7 +337,7 @@ class DecoderMorrisBiasHEB(
 class EncoderMorrisBiasHEB(
     gSize: Int,
     size: Int,
-    rounding : RoundingType,
+    rounding : Some[RoundingType],
     internalExponentSize : Int,
     internalFractionSize : Int,
     softwareDebug : Boolean = false
@@ -345,6 +345,7 @@ class EncoderMorrisBiasHEB(
         internalExponentSize,
         internalFractionSize,
         size,
+        rounding,
         softwareDebug
     ) {
     val minimumInternalFractionSize = MorrisBiasHEB.internalFractionSize(gSize, size)
@@ -432,12 +433,16 @@ class EncoderMorrisBiasHEB(
         partialBinary := (floatingPoint.sign ## gValue ## Fill(size-1-gSize, 0.U(1.W))) | exponentBits | mantissaBits
 
         //rounding
-		val roundingModule = Module(new FloatingPointRounding(rounding, softwareDebug))
+		val roundingModule = Module(new FloatingPointRounding(softwareDebug))
         roundingModule.io.sign := floatingPoint.sign
         roundingModule.io.l := partialBinary(0)
         roundingModule.io.g := floatingPoint.restBits(2)
         roundingModule.io.r := floatingPoint.restBits(1)
         roundingModule.io.s := floatingPoint.restBits(0)
+        io.roundingType match {
+            case Some(r) => roundingModule.io.rounding := r
+            case None => roundingModule.io.rounding := RoundingType.toUInt(rounding.get)
+        }
         
         when(((exponentSize - binaryExponentSize) >= 1.U) && floatingPoint.exponentSign) {
             io.binary := partialBinary -& roundingModule.io.addOne //if the last bits are exponent and the exponent is negative you have to substract one

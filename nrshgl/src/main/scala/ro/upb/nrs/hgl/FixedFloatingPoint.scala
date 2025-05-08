@@ -44,7 +44,7 @@ case class FixedFloatingPoint(
             new EncoderFixedFloatingPoint(
                 exponentSize,
                 fractionSize,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 size,
@@ -62,7 +62,7 @@ case class FixedFloatingPoint(
             new EncoderFixedFloatingPoint(
                 exponentSize,
                 fractionSize,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 size,
@@ -80,7 +80,7 @@ case class FixedFloatingPoint(
             new EncoderFixedFloatingPoint(
                 exponentSize,
                 fractionSize,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 size,
@@ -98,7 +98,7 @@ case class FixedFloatingPoint(
             new EncoderFixedFloatingPoint(
                 exponentSize,
                 fractionSize,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 size,
@@ -116,7 +116,7 @@ case class FixedFloatingPoint(
             new EncoderFixedFloatingPoint(
                 exponentSize,
                 fractionSize,
-                rounding,
+                Some(rounding),
                 internalExponentSize,
                 internalFractionSize,
                 size,
@@ -156,7 +156,7 @@ case class FixedFloatingPoint(
         new EncoderFixedFloatingPoint(
             this.exponentSize,
             this.fractionSize,
-            this.rounding,
+            Some(this.rounding),
             floatingPointExponentSize,
             floatingPointFractionSize,
             floatingPointSize,
@@ -276,7 +276,7 @@ class DecoderFixedFloatingPoint(
 class EncoderFixedFloatingPoint(
     exponentSize: Int,
     fractionSize: Int,
-    rounding : RoundingType,
+    rounding : Some[RoundingType],
     internalExponentSize : Int,
     internalFractionSize : Int,
     size : Int,
@@ -285,6 +285,7 @@ class EncoderFixedFloatingPoint(
         internalExponentSize,
         internalFractionSize,
         size,
+        rounding,
         softwareDebug
     ) {
     val minimumInternalFractionSize = FixedFloatingPoint.internalFractionSize(exponentSize, fractionSize)
@@ -343,12 +344,16 @@ class EncoderFixedFloatingPoint(
         if(softwareDebug) printf("[EncoderFixedFloatingPoint] partialBinary DEC: %d, partialBinary HEX %x\n", partialBinary, partialBinary)
         
         //rounding
-		val roundingModule = Module(new FloatingPointRounding(rounding, softwareDebug))
+		val roundingModule = Module(new FloatingPointRounding(softwareDebug))
         roundingModule.io.sign := floatingPoint.sign
         roundingModule.io.l := partialBinary(0)
         roundingModule.io.g := floatingPoint.restBits(2)
         roundingModule.io.r := floatingPoint.restBits(1)
         roundingModule.io.s := floatingPoint.restBits(0)
+        io.roundingType match {
+            case Some(r) => roundingModule.io.rounding := r
+            case None => roundingModule.io.rounding := RoundingType.toUInt(rounding.get)
+        }
         io.binary := partialBinary + roundingModule.io.addOne
     }
     if(softwareDebug) printf("[EncoderFixedFloatingPoint] io.binary DEC: %d, io.binary HEX %x\n", io.binary, io.binary)

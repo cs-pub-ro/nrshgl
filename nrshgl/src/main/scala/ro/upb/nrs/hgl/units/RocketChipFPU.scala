@@ -68,3 +68,21 @@ class MulAddRecFNPipe(expWidth: Int, sigWidth: Int, nrs: NRS) extends Module
 
     io.out            := encoder.io.binary
 }
+
+class ConvertIntegerToIEEE(integerSize: Int, exponentSize: Int, fractionSize: Int, rounding: RoundingType, softwareDebug: Boolean = false) extends Module {
+    val io = IO(new Bundle {
+        val integer = Input(UInt(integerSize.W))
+        val sign = Input(Bool())
+        val binary = Output(Bits((exponentSize + fractionSize + 1).W))
+    })
+
+    val conv = Module(new IntegerToFloatingPoint(integerSize, exponentSize, fractionSize, softwareDebug))
+    val fpResult = Wire(new FloatingPoint(exponentSize, fractionSize))
+    conv.io.integer := io.integer
+    conv.io.sign := io.sign
+    fpResult := conv.io.result
+
+    val encode = Module(new EncoderIEEE754(exponentSize, fractionSize, Some(rounding), exponentSize, fractionSize, fractionSize + exponentSize + 1))
+    encode.io.floatingPoint := fpResult
+    io.binary := encode.io.binary
+}

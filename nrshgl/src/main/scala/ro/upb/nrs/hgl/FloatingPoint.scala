@@ -1172,11 +1172,58 @@ class IntegerToFloatingPoint(
     integerSize: Int,
     exponentSize: Int,
     fractionSize: Int,
+    softwareDebug: Boolean = false,
 ) extends Module {
     val io = IO(new Bundle {
         val integer = Input(UInt(integerSize.W))
         val sign = Input(Bool())
-        val rounding = Input(UInt(3.W))
         val result = Output(new FloatingPoint(exponentSize, fractionSize))
     })
+
+    io.result.sign := Mux(io.sign, io.integer(integerSize - 1), false.B)
+    io.result.zero := false.B
+    io.result.inf := false.B
+    io.result.nan := false.B
+    io.result.underflow := false.B
+    io.result.overflow := false.B
+    io.result.exponentSign := false.B
+    io.result.exponentAbsoluteValue := 0.U
+    io.result.mantissa := 0.U
+    io.result.restBits := 0.U
+    
+    when(io.integer === 0.U) {
+        io.result.zero := true.B
+    }.otherwise {
+        val absoluteValue = Mux(io.sign && io.integer(integerSize - 1), 
+                               (~io.integer).asUInt + 1.U, 
+                               io.integer)
+
+        val leadingOne = PriorityEncoder(Reverse(absoluteValue))
+        val msbPosition = integerSize.U - 1.U - leadingOne
+
+        val normalizedValue = absoluteValue << (integerSize.U - 1.U - msbPosition)
+
+        io.result.exponentAbsoluteValue := msbPosition
+
+        if (fractionSize + 1 >= integerSize) {
+            io.result.mantissa := Cat(1.U(1.W), normalizedValue(integerSize-2, 0), 0.U((fractionSize + 1 - integerSize).W))
+        } else {
+            io.result.mantissa := Cat(1.U(1.W), normalizedValue(integerSize-2, integerSize-fractionSize-1))
+            val roundPosition = integerSize - fractionSize - 2
+            if (roundPosition >= 0) {
+                val g = normalizedValue(roundPosition)
+                val r = if (roundPosition > 0) normalizedValue(roundPosition-1) else false.B
+                val s = if (roundPosition > 1) normalizedValue(roundPosition-2, 0).orR else false.B
+                io.result.restBits := Cat(g, r, s)
+            }
+        }
+
+        if (softwareDebug) {
+            printf("[IntegerToFloatingPoint] input integer: %d\n", io.integer)
+            printf("[IntegerToFloatingPoint] sign: %d\n", io.result.sign)
+            printf("[IntegerToFloatingPoint] exponent: %d\n", io.result.exponentAbsoluteValue)
+            printf("[IntegerToFloatingPoint] mantissa: 0x%x\n", io.result.mantissa)
+            printf("[IntegerToFloatingPoint] restBits: 0x%x\n", io.result.restBits)
+        }
+    }
 }

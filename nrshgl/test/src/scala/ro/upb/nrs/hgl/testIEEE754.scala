@@ -205,6 +205,44 @@ class TestDivisionExhaustiveIEEE754 extends AnyFlatSpec with ChiselScalatestTest
     }
 }
 
+class TestIntegerToFloatIEEE754 extends AnyFlatSpec with ChiselScalatestTester {
+    behavior of "TestIntegerToFloatIEEE754"
+
+    val integerSize = 32
+    val exponent_size = 8
+    val fraction_size = 23
+    val rounding = RoundEven
+    val size = exponent_size + fraction_size + 1
+
+  it should "pass" in {
+    test(new ConvertIntegerToIEEE(integerSize, exponent_size, fraction_size, rounding)) { dut =>
+        for (i <- 0 until 100) {
+            val integer = BigInt(i.toString(), 10).U
+            dut.io.integer.poke(integer)
+            dut.io.sign.poke(false)
+            dut.clock.step(1)
+            val result = dut.io.binary.peek()
+
+            println(s"Result: ${sl.IEEE754.apply(String.format("%32s", result.litValue.toString(2)).replace(' ', '0'),
+                exponent_size, fraction_size, sl.RoundEven)}")
+        }
+
+        for (i <- -500 until -400) {
+            val twosComplement = (BigInt(i) & ((BigInt(1) << integerSize) - 1))
+            val integer = twosComplement.U(integerSize.W)
+
+            dut.io.integer.poke(integer)
+            dut.io.sign.poke(true)
+            dut.clock.step(1)
+            val result = dut.io.binary.peek()
+
+            println(s"Result: ${sl.IEEE754.apply(String.format("%32s", result.litValue.toString(2)).replace(' ', '0'),
+                exponent_size, fraction_size, sl.RoundEven)}")
+        }
+    }
+  }
+}
+
 class MyTest extends AnyFlatSpec with ChiselScalatestTester {
   behavior of "MyModule"
 

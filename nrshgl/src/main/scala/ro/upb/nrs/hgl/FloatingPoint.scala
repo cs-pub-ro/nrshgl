@@ -912,15 +912,15 @@ class FloatingPointRounding(softwareDebug : Boolean = false) extends Module {
     })
 
     when(io.rounding === 0.U) {
-        io.addOne := Mux(!io.sign & (io.g|io.r|io.s), true.B, false.B)
-    } .elsewhen(io.rounding === 1.U) {
-        io.addOne := Mux(io.sign & (io.g|io.r|io.s), true.B, false.B) 
-    } .elsewhen(io.rounding === 2.U) {
-        io.addOne := 0.U
-    } .elsewhen(io.rounding === 3.U) {
-        io.addOne := Mux(io.g|io.r|io.s, true.B, false.B)
-    } .elsewhen(io.rounding === 4.U) {
         io.addOne := Mux(io.g&(io.r|io.s|io.l), true.B, false.B)
+    } .elsewhen(io.rounding === 1.U) {
+        io.addOne := 0.U
+    } .elsewhen(io.rounding === 2.U) {
+        io.addOne := Mux(io.sign & (io.g|io.r|io.s), true.B, false.B) 
+    } .elsewhen(io.rounding === 3.U) {
+        io.addOne := Mux(!io.sign & (io.g|io.r|io.s), true.B, false.B)
+    } .elsewhen(io.rounding === 4.U) {
+        io.addOne := Mux(io.g|io.r|io.s, true.B, false.B)
     } .otherwise {
         io.addOne := 0.U
     }
@@ -1225,5 +1225,67 @@ class IntegerToFloatingPoint(
             printf("[IntegerToFloatingPoint] mantissa: 0x%x\n", io.result.mantissa)
             printf("[IntegerToFloatingPoint] restBits: 0x%x\n", io.result.restBits)
         }
+    }
+}
+
+class FloatingPointToInteger(
+    integerSize: Int,
+    exponentSize: Int,
+    fractionSize: Int,
+    softwareDebug: Boolean = false,
+) extends Module {
+    val io = IO(new Bundle {
+        val floatingPoint = Input(new FloatingPoint(exponentSize, fractionSize))
+        val roundingType = Input(UInt(3.W))
+        val integer = Output(UInt(integerSize.W))
+    })
+
+    io.integer := 1.U
+
+    when(io.floatingPoint.nan || io.floatingPoint.inf) {
+        io.integer := Fill(integerSize, 1.U(1.W))
+    } .elsewhen(io.floatingPoint.zero) {
+        io.integer := 0.U
+    } .otherwise {
+        val absoluteExponent = io.floatingPoint.exponentAbsoluteValue
+
+        when(absoluteExponent >= integerSize.U - 2.U && !io.floatingPoint.exponentSign) {
+            io.integer := Mux(io.floatingPoint.sign, 
+                              (1.U << (integerSize - 1)), 
+                              Fill(integerSize, 1.U))
+        } .elsewhen(io.floatingPoint.exponentSign) {
+
+            val shiftedMantissa = io.floatingPoint.mantissa >> absoluteExponent
+            
+            val roundingLogic = Module(new FloatingPointRounding(softwareDebug))
+            roundingLogic.io.l := shiftedMantissa(io.floatingPoint.mantissa.getWidth - 1)
+            roundingLogic.io.g := shiftedMantissa(io.floatingPoint.mantissa.getWidth - 2)
+            roundingLogic.io.r := shiftedMantissa(io.floatingPoint.mantissa.getWidth - 3)
+            roundingLogic.io.s := shiftedMantissa(io.floatingPoint.mantissa.getWidth - 4, 0).orR
+            roundingLogic.io.sign := io.floatingPoint.sign
+            roundingLogic.io.rounding := io.roundingType
+            
+            val intResult = Mux(roundingLogic.io.addOne, 1.U, 0.U)
+            
+            io.integer := Mux(io.floatingPoint.sign,
+                             ~(intResult.pad(integerSize)) + 1.U,
+                             intResult.pad(integerSize))
+            if (softwareDebug) {
+                printf("[FloatingPointToInteger] shiftedMantissa: 0x%x\n", shiftedMantissa)
+            }
+        } .otherwise {
+        }
+
+        if (softwareDebug) {
+            printf("[FloatingPointToInteger] absoluteExponent: %d\n", absoluteExponent)
+        }
+    }
+
+    if (softwareDebug) {
+        printf("[FloatingPointToInteger] input floating point: 0x%x\n", io.floatingPoint.asUInt)
+        printf("[FloatingPointToInteger] sign: %d\n", io.floatingPoint.sign)
+        printf("[FloatingPointToInteger] exponent: %d\n", io.floatingPoint.exponentAbsoluteValue)
+        printf("[FloatingPointToInteger] mantissa: 0x%x\n", io.floatingPoint.mantissa)
+        printf("[FloatingPointToInteger] integer output: 0x%x\n", io.integer)
     }
 }

@@ -69,7 +69,7 @@ class MulAddRecFNPipe(expWidth: Int, sigWidth: Int, nrs: NRS) extends Module
     io.out            := encoder.io.binary
 }
 
-class ConvertIntegerToIEEE(integerSize: Int, exponentSize: Int, fractionSize: Int, rounding: RoundingType, softwareDebug: Boolean = false) extends Module {
+class ConvertIntegerToFP(integerSize: Int, exponentSize: Int, fractionSize: Int, rounding: RoundingType, nrs: NRS, softwareDebug: Boolean = false) extends Module {
     val io = IO(new Bundle {
         val integer = Input(UInt(integerSize.W))
         val sign = Input(Bool())
@@ -82,7 +82,22 @@ class ConvertIntegerToIEEE(integerSize: Int, exponentSize: Int, fractionSize: In
     conv.io.sign := io.sign
     fpResult := conv.io.result
 
-    val encode = Module(new EncoderIEEE754(exponentSize, fractionSize, Some(rounding), exponentSize, fractionSize, fractionSize + exponentSize + 1))
+    val encode = Module(nrs.getEncoder(exponentSize, fractionSize + 1))
     encode.io.floatingPoint := fpResult
     io.binary := encode.io.binary
+}
+
+class ConvertFPToInteger(integerSize: Int, exponentSize: Int, fractionSize: Int, rounding: RoundingType, nrs : NRS, softwareDebug: Boolean = false) extends Module {
+    val io = IO(new Bundle {
+        val binary = Input(Bits((exponentSize + fractionSize + 1).W))
+        val integer = Output(UInt(integerSize.W))
+    })
+
+    val decode = Module(nrs.getDecoder(exponentSize, fractionSize + 1))
+    decode.io.binary := io.binary
+
+    val conv = Module(new FloatingPointToInteger(integerSize, exponentSize, fractionSize, softwareDebug))
+    conv.io.floatingPoint := decode.io.result
+    conv.io.roundingType := RoundingType.toUInt(rounding)
+    io.integer := conv.io.integer
 }

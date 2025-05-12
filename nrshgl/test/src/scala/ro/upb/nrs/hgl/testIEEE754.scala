@@ -253,19 +253,31 @@ class TestFloatIEEE754ToInteger extends AnyFlatSpec with ChiselScalatestTester {
     val size = exponent_size + fraction_size + 1
 
   it should "pass" in {
-    test(new ConvertFPToInteger(integerSize, exponent_size, fraction_size, rounding, NRS_IEEE754, true)) { dut =>
-        val a = 0.6f;
+    test(new ConvertFPToInteger(integerSize, exponent_size, fraction_size, rounding, NRS_IEEE754)) { dut =>
+        val testValues = Array(
+            // Whole numbers 
+            0.0f, 1.0f, -1.0f, 2.0f, -2.0f, 28455.0f, -28455.0f, 
+            // Very large numbers (near int32 limits)
+            2147483520.0f, -2147483520.0f,  // Close to Int.MaxValue/MinValue
+            // Fractional numbers
+            3.14f, -3.14f, 0.5f, -0.5f, 0.25f, -0.25f, 0.75f, -0.75f,
+            // Very small numbers that should round to 0
+            0.1f, -0.1f, 0.01f, -0.01f,
+            // Special cases
+            Float.NaN
+        )
+        
+        for (testValue <- testValues) {
+            val bits = java.lang.Float.floatToIntBits(testValue)
+            val bits_unsigned = bits & 0xFFFFFFFFL
 
-        val a_bits = java.lang.Float.floatToIntBits(a);
-
-        val a_bits_unsigned = a_bits & 0xFFFFFFFFL
-
-        dut.io.binary.poke(a_bits_unsigned.U)
-        dut.clock.step(1)
-
-        val result = dut.io.integer.peek()
-
-        println(s"Result: ${result.litValue.intValue}")
+            dut.io.binary.poke(bits_unsigned.U)
+            dut.clock.step(1)
+            
+            val result = dut.io.integer.peek()
+            
+            println(s"Value: $testValue -> Integer result: ${result.litValue.intValue}")
+        }
     }
   }
 }

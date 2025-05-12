@@ -1243,7 +1243,7 @@ class FloatingPointToInteger(
     io.integer := 1.U
 
     when(io.floatingPoint.nan || io.floatingPoint.inf) {
-        io.integer := Fill(integerSize, 1.U(1.W))
+        io.integer := (1.U << (integerSize - 1))
     } .elsewhen(io.floatingPoint.zero) {
         io.integer := 0.U
     } .otherwise {
@@ -1252,7 +1252,7 @@ class FloatingPointToInteger(
         when(absoluteExponent >= integerSize.U - 2.U && !io.floatingPoint.exponentSign) {
             io.integer := Mux(io.floatingPoint.sign, 
                               (1.U << (integerSize - 1)), 
-                              Fill(integerSize, 1.U))
+                              Fill(integerSize - 1, 1.U))
         } .elsewhen(io.floatingPoint.exponentSign) {
 
             val shiftedMantissa = io.floatingPoint.mantissa >> absoluteExponent
@@ -1270,10 +1270,40 @@ class FloatingPointToInteger(
             io.integer := Mux(io.floatingPoint.sign,
                              ~(intResult.pad(integerSize)) + 1.U,
                              intResult.pad(integerSize))
-            if (softwareDebug) {
-                printf("[FloatingPointToInteger] shiftedMantissa: 0x%x\n", shiftedMantissa)
-            }
         } .otherwise {
+            val shiftAmount = Mux(absoluteExponent >= integerSize.U, 
+                         integerSize.U - 1.U,
+                         absoluteExponent)
+
+            val shiftedMantissa = io.floatingPoint.mantissa << shiftAmount
+
+            val integerPart = shiftedMantissa >> fractionSize.U
+
+            val roundingLogic = Module(new FloatingPointRounding(softwareDebug))
+
+            roundingLogic.io.l := integerPart(0)
+            roundingLogic.io.g := shiftedMantissa(fractionSize - 1)
+            roundingLogic.io.r := shiftedMantissa(fractionSize - 2)
+            roundingLogic.io.s := shiftedMantissa(fractionSize - 3, 0).orR
+            roundingLogic.io.sign := io.floatingPoint.sign
+            roundingLogic.io.rounding := io.roundingType
+
+            val roundedInteger = Mux(roundingLogic.io.addOne, 
+                                    integerPart + 1.U, 
+                                    integerPart)
+
+            val resultInteger = Mux(io.floatingPoint.sign,
+                                ~roundedInteger + 1.U,
+                                roundedInteger)
+
+            io.integer := resultInteger(integerSize - 1, 0)
+
+            if (softwareDebug) {
+                printf("[FloatingPointToInteger] shiftAmount: %d\n", shiftAmount)
+                printf("[FloatingPointToInteger] shiftedMantissa: 0x%x\n", shiftedMantissa)
+                printf("[FloatingPointToInteger] integerPart: 0x%x\n", integerPart)
+                printf("[FloatingPointToInteger] roundedInteger: 0x%x\n", roundedInteger)
+            }
         }
 
         if (softwareDebug) {

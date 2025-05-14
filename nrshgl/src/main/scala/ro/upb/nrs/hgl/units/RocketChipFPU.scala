@@ -90,6 +90,7 @@ class ConvertIntegerToFP(integerSize: Int, exponentSize: Int, fractionSize: Int,
 class ConvertFPToInteger(integerSize: Int, exponentSize: Int, fractionSize: Int, rounding: RoundingType, nrs : NRS, softwareDebug: Boolean = false) extends Module {
     val io = IO(new Bundle {
         val binary = Input(Bits((exponentSize + fractionSize + 1).W))
+        val signOut = Input(Bool())
         val integer = Output(UInt(integerSize.W))
     })
 
@@ -99,5 +100,6 @@ class ConvertFPToInteger(integerSize: Int, exponentSize: Int, fractionSize: Int,
     val conv = Module(new FloatingPointToInteger(integerSize, exponentSize, fractionSize, softwareDebug))
     conv.io.floatingPoint := decode.io.result
     conv.io.roundingType := RoundingType.toUInt(rounding)
+    conv.io.signOut := io.signOut
     io.integer := conv.io.integer
 }

@@ -1236,6 +1236,7 @@ class FloatingPointToInteger(
 ) extends Module {
     val io = IO(new Bundle {
         val floatingPoint = Input(new FloatingPoint(exponentSize, fractionSize))
+        val signOut = Input(Bool())  // Controls sign interpretation of output
         val roundingType = Input(UInt(3.W))
         val integer = Output(UInt(integerSize.W))
     })
@@ -1248,13 +1249,15 @@ class FloatingPointToInteger(
         io.integer := 0.U
     } .otherwise {
         val absoluteExponent = io.floatingPoint.exponentAbsoluteValue
+        
+        val applySign = Wire(Bool())
+        applySign := Mux(io.signOut, io.floatingPoint.sign, false.B)
 
         when(absoluteExponent >= integerSize.U - 2.U && !io.floatingPoint.exponentSign) {
-            io.integer := Mux(io.floatingPoint.sign, 
-                              (1.U << (integerSize - 1)), 
-                              Fill(integerSize - 1, 1.U))
+            io.integer := Mux(applySign, 
+                             (1.U << (integerSize - 1)), 
+                             Fill(integerSize - 1, 1.U))
         } .elsewhen(io.floatingPoint.exponentSign) {
-
             val shiftedMantissa = io.floatingPoint.mantissa >> absoluteExponent
             
             val roundingLogic = Module(new FloatingPointRounding(softwareDebug))
@@ -1267,13 +1270,13 @@ class FloatingPointToInteger(
             
             val intResult = Mux(roundingLogic.io.addOne, 1.U, 0.U)
             
-            io.integer := Mux(io.floatingPoint.sign,
-                             ~(intResult.pad(integerSize)) + 1.U,
-                             intResult.pad(integerSize))
+            io.integer := Mux(applySign,
+                            ~(intResult.pad(integerSize)) + 1.U,
+                            intResult.pad(integerSize))
         } .otherwise {
             val shiftAmount = Mux(absoluteExponent >= integerSize.U, 
-                         integerSize.U - 1.U,
-                         absoluteExponent)
+                                integerSize.U - 1.U,
+                                absoluteExponent)
 
             val shiftedMantissa = io.floatingPoint.mantissa << shiftAmount
 
@@ -1289,12 +1292,12 @@ class FloatingPointToInteger(
             roundingLogic.io.rounding := io.roundingType
 
             val roundedInteger = Mux(roundingLogic.io.addOne, 
-                                    integerPart + 1.U, 
-                                    integerPart)
+                                  integerPart + 1.U, 
+                                  integerPart)
 
-            val resultInteger = Mux(io.floatingPoint.sign,
-                                ~roundedInteger + 1.U,
-                                roundedInteger)
+            val resultInteger = Mux(applySign,
+                                  ~roundedInteger + 1.U,
+                                  roundedInteger)
 
             io.integer := resultInteger(integerSize - 1, 0)
 
@@ -1303,11 +1306,13 @@ class FloatingPointToInteger(
                 printf("[FloatingPointToInteger] shiftedMantissa: 0x%x\n", shiftedMantissa)
                 printf("[FloatingPointToInteger] integerPart: 0x%x\n", integerPart)
                 printf("[FloatingPointToInteger] roundedInteger: 0x%x\n", roundedInteger)
+                printf("[FloatingPointToInteger] applySign: %d\n", applySign)
             }
         }
 
         if (softwareDebug) {
             printf("[FloatingPointToInteger] absoluteExponent: %d\n", absoluteExponent)
+            printf("[FloatingPointToInteger] signOut: %d\n", io.signOut)
         }
     }
 

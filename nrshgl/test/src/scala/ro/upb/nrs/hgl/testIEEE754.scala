@@ -272,6 +272,7 @@ class TestFloatIEEE754ToInteger extends AnyFlatSpec with ChiselScalatestTester {
             val bits_unsigned = bits & 0xFFFFFFFFL
 
             dut.io.binary.poke(bits_unsigned.U)
+            dut.io.signOut.poke(testValue < 0)
             dut.clock.step(1)
             
             val result = dut.io.integer.peek()

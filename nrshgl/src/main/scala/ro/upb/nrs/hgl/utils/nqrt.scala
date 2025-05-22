@@ -37,7 +37,7 @@ if(REMAINDER >= Y) {
 }
 result = (Q, REMAINDER)
 */
-class NQRT(size: Int, order : Int) extends Module {
+class NQRT(size: Int, order : Int, softwareDebug: Boolean) extends Module {
     /*
     NQRT needs that the size to be multiple of n (because it taks n bits at the time)
     we calculate the right size and we fill de operand with zero on the MSB bits
@@ -95,7 +95,9 @@ class NQRT(size: Int, order : Int) extends Module {
             for (j <- 0 until order ) {
                 qpow(i)(j) := 0.U
             }
-            printf("i: %d, ys %d, tmpr %d, dividents %d, remainders %d, quotients %d\n", i.asUInt,  ys(i), tmpr(i), dividents(i), remainders(i), quotients(i) )
+            if (softwareDebug) {
+                printf("i: %d, ys %d, tmpr %d, dividents %d, remainders %d, quotients %d\n", i.asUInt,  ys(i), tmpr(i), dividents(i), remainders(i), quotients(i) )
+            }
         } else {
             /*
             calculates q^iterator with iterator from 0 to order - 1
@@ -129,7 +131,9 @@ class NQRT(size: Int, order : Int) extends Module {
             }
             */
             quotients(i) := Mux(tmpr(i) >= ys(i), (quotients(i - 1) << 1) + 1.U , (quotients(i - 1) << 1)  )
-            printf("i: %d, ys %d, tmpr %d, dividents %d, remainders %d, quotients %d\n", i.asUInt,  ys(i), tmpr(i), dividents(i), remainders(i), quotients(i) )
+            if (softwareDebug) {
+                printf("i: %d, ys %d, tmpr %d, dividents %d, remainders %d, quotients %d\n", i.asUInt,  ys(i), tmpr(i), dividents(i), remainders(i), quotients(i) )
+            }
          }
     }
 

@@ -782,7 +782,7 @@ class FloatingPointSquareRoot(exponentSize: Int, fractionSize: Int, softwareDebu
         val mantissaSQRTResult = Wire(UInt((2 * fractionSize + 1 + 1 + 4).W))
         val mantissaSQRTRemainder = Wire(Bool())
 
-        val sqrtModule = Module(new NQRT(2 * fractionSize + 1 + 1 + 4, 2))
+        val sqrtModule = Module(new NQRT(2 * fractionSize + 1 + 1 + 4, 2, softwareDebug))
         sqrtModule.io.op := mantissaSQRT
         mantissaSQRTResult := sqrtModule.io.q
         mantissaSQRTRemainder := sqrtModule.io.r.orR

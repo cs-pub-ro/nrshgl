@@ -276,7 +276,7 @@ class DecoderFixedFloatingPoint(
 class EncoderFixedFloatingPoint(
     exponentSize: Int,
     fractionSize: Int,
-    rounding : Some[RoundingType],
+    rounding : Option[RoundingType],
     internalExponentSize : Int,
     internalFractionSize : Int,
     size : Int,

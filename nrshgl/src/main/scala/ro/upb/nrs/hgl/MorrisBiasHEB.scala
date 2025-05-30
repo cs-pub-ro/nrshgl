@@ -337,7 +337,7 @@ class DecoderMorrisBiasHEB(
 class EncoderMorrisBiasHEB(
     gSize: Int,
     size: Int,
-    rounding : Some[RoundingType],
+    rounding : Option[RoundingType],
     internalExponentSize : Int,
     internalFractionSize : Int,
     softwareDebug : Boolean = false

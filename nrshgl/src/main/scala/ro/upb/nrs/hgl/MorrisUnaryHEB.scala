@@ -328,7 +328,7 @@ class DecoderMorrisUnaryHEB(
 
 class EncoderMorrisUnaryHEB(
     size: Int,
-    rounding : Some[RoundingType],
+    rounding : Option[RoundingType],
     internalExponentSize : Int,
     internalFractionSize : Int,
     softwareDebug : Boolean = false

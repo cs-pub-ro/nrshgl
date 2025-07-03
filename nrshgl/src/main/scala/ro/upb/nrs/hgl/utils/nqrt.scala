@@ -37,7 +37,7 @@ if(REMAINDER >= Y) {
 }
 result = (Q, REMAINDER)
 */
-class NQRT(size: Int, order : Int, softwareDebug: Boolean) extends Module {
+class NQRT(size: Int, order : Int, softwareDebug: Boolean = false) extends Module {
     /*
     NQRT needs that the size to be multiple of n (because it taks n bits at the time)
     we calculate the right size and we fill de operand with zero on the MSB bits

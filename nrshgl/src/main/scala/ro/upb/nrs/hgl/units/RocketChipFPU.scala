@@ -1,22 +1,83 @@
 package ro.upb.nrs.hgl
 
 import chisel3._
+import chisel3.util._
+import chisel3.{DontCare, WireInit, withClock, withReset}
+import chisel3.experimental.SourceInfo
+import chisel3.experimental.dataview._
 import ro.upb.nrs.hgl._
 
 trait NRS {
-  def getEncoder(expWidth : Int, sigWidth : Int) : EncoderFloatingPoint
-  def getDecoder(expWidth : Int, sigWidth : Int) : DecoderFloatingPoint
+  def getInternalExponentSize(expWidth : Int, sigWidth : Int) : Int
+  def getInternalFractionSize(expWidth : Int, sigWidth : Int) : Int
+
+  def getEncoder(expWidth : Int, sigWidth : Int, internalExponentSize : Option[Int] = None, internalFractionSize : Option[Int] = None) : EncoderFloatingPoint
+  def getDecoder(expWidth : Int, sigWidth : Int, internalExponentSize : Option[Int] = None, internalFractionSize : Option[Int] = None) : DecoderFloatingPoint
+
+  def getZero(expWidth : Int, sigWidth : Int) : UInt
+  def getOne(expWidth : Int, sigWidth : Int) : UInt
+
+  def getSignIdx(expWidth : Int, sigWidth : Int) : Int = {
+    expWidth + sigWidth - 1
+  }
 }
 
 object NRS_IEEE754 extends NRS {
-  override def getEncoder(expWidth : Int, sigWidth : Int) : EncoderFloatingPoint = {
-    new EncoderIEEE754(expWidth, sigWidth - 1, Some(RoundEven), expWidth, sigWidth - 1,
-      expWidth + sigWidth)
+  override def getInternalExponentSize(expWidth : Int, sigWidth : Int) : Int = {
+    IEEE754.internalExponentSize(expWidth, sigWidth - 1)
   }
 
-  override def getDecoder(expWidth : Int, sigWidth : Int) : DecoderFloatingPoint = {
-    new DecoderIEEE754(expWidth, sigWidth - 1, expWidth, sigWidth - 1,
-      expWidth + sigWidth)
+  override def getInternalFractionSize(expWidth : Int, sigWidth : Int) : Int = {
+    IEEE754.internalFractionSize(expWidth, sigWidth - 1)
+  }
+
+  override def getEncoder(expWidth : Int, sigWidth : Int, internalExponentSize : Option[Int] = None, internalFractionSize : Option[Int] = None) : EncoderFloatingPoint = {
+    new EncoderIEEE754(expWidth, sigWidth - 1, None, internalExponentSize.getOrElse(getInternalExponentSize(expWidth, sigWidth)),
+      internalFractionSize.getOrElse(getInternalFractionSize(expWidth, sigWidth)), expWidth + sigWidth)
+  }
+
+  override def getDecoder(expWidth : Int, sigWidth : Int, internalExponentSize : Option[Int] = None, internalFractionSize : Option[Int] = None) : DecoderFloatingPoint = {
+    new DecoderIEEE754(expWidth, sigWidth - 1, internalExponentSize.getOrElse(getInternalExponentSize(expWidth, sigWidth)),
+      internalFractionSize.getOrElse(getInternalFractionSize(expWidth, sigWidth)), expWidth + sigWidth)
+  }
+
+  override def getZero(expWidth : Int, sigWidth : Int) : UInt = {
+    0.U((expWidth + sigWidth).W)
+  }
+  
+  override def getOne(expWidth : Int, sigWidth : Int) : UInt = {
+    0.U(2.W) ## Fill(expWidth - 1, 1.U(1.W)) ## 0.U((sigWidth - 1).W)
+  }
+}
+
+object NRS_POSIT extends NRS {
+  private def EXP = 2
+  override def getInternalExponentSize(expWidth : Int, sigWidth : Int) : Int = {
+    Posit.internalExponentSize(EXP, expWidth + sigWidth)
+  }
+
+  override def getInternalFractionSize(expWidth : Int, sigWidth : Int) : Int = {
+    Posit.internalFractionSize(EXP, expWidth + sigWidth)
+  }
+
+  override def getEncoder(expWidth : Int, sigWidth : Int, internalExponentSize : Option[Int] = None, internalFractionSize : Option[Int] = None) : EncoderFloatingPoint = {
+    new EncoderPosit(EXP, expWidth + sigWidth, None,
+      internalExponentSize.getOrElse(getInternalExponentSize(expWidth, sigWidth)),
+      internalFractionSize.getOrElse(getInternalFractionSize(expWidth, sigWidth)))
+  }
+
+  override def getDecoder(expWidth : Int, sigWidth : Int, internalExponentSize : Option[Int] = None, internalFractionSize : Option[Int] = None) : DecoderFloatingPoint = {
+    new DecoderPosit(EXP, expWidth + sigWidth,
+      internalExponentSize.getOrElse(getInternalExponentSize(expWidth, sigWidth)),
+      internalFractionSize.getOrElse(getInternalFractionSize(expWidth, sigWidth)))
+  }
+
+  override def getZero(expWidth : Int, sigWidth : Int) : UInt = {
+    0.U((expWidth + sigWidth).W)
+  }
+  
+  override def getOne(expWidth : Int, sigWidth : Int) : UInt = {
+    0.U(1.W) ## 1.U(1.W) ## 0.U((expWidth + sigWidth - 2).W)
   }
 }
 
@@ -102,4 +163,23 @@ class ConvertFPToInteger(integerSize: Int, exponentSize: Int, fractionSize: Int,
     conv.io.roundingType := RoundingType.toUInt(rounding)
     conv.io.signOut := io.signOut
     io.integer := conv.io.integer
+}
+
+class IEEEToPositTest(exp: Int, sig: Int) extends Module {
+    val io = IO(new Bundle {
+        val ieeeDouble = Input(Bits((exp + sig).W))
+        val out = Output(Bits((exp + sig).W))
+    })
+
+    val decoder = Module(NRS_IEEE754.getDecoder(exp, sig))
+    decoder.io.binary := io.ieeeDouble
+    
+    val encoder = Module(NRS_POSIT.getEncoder(exp, sig, Some(NRS_IEEE754.getInternalExponentSize(exp, sig)), Some(NRS_IEEE754.getInternalFractionSize(exp, sig))))
+    encoder.io.floatingPoint := decoder.io.result
+    encoder.io.roundingType match {
+        case Some(r) => r := 0.U
+        case None => 
+    }
+
+    io.out := encoder.io.binary
 }

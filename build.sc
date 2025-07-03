@@ -12,9 +12,43 @@ object v {
   val scalatest = ivy"org.scalatest::scalatest:3.2.0"
   val scalapar = ivy"org.scala-lang.modules::scala-parallel-collections:1.0.4"
 
+  val scalatestplus = ivy"org.scalatestplus::scalacheck-1-14::3.2.2.0"
+
   val chiseltest = ivy"edu.berkeley.cs::chiseltest:5.0.2"
 
   val sl = ivy"ro.upb.nrs::sl:1.0.0"
+}
+
+object fixedpoint extends Cross[FixedPoint](v.chiselCrossVersions.keys.toSeq) {
+  def defaultCrossValue = v.defaultChiselVersion
+  def default() : FixedPoint = apply(defaultCrossValue)
+}
+
+trait FixedPoint
+  extends common.HasChisel
+    with Cross.Module[String] {
+  override def scalaVersion = T(v.scala)
+
+  override def millSourcePath = os.pwd / "fixedpoint"
+
+  def chiselModule = None
+
+  def chiselPluginJar = None
+
+  def chiselIvy = Some(v.chiselCrossVersions(crossValue)._1)
+
+  def chiselPluginIvy = Some(v.chiselCrossVersions(crossValue)._2)
+
+  def scalatestIvy = v.scalatest
+
+  def scalatestplusIvy = v.scalatestplus
+
+  override def ivyDeps = T(
+    super.ivyDeps() ++ Agg(
+      scalatestIvy,
+      scalatestplusIvy
+    )
+  )
 }
 
 object nrshgl extends Cross[Nrshgl](v.chiselCrossVersions.keys.toSeq) {
@@ -30,6 +64,8 @@ trait Nrshgl
 
   override def millSourcePath = os.pwd / "nrshgl"
 
+  def fixedpointModule: ScalaModule = fixedpoint(crossValue)
+
   def chiselModule = None
 
   def chiselPluginJar = None
@@ -37,6 +73,8 @@ trait Nrshgl
   def chiselIvy = Some(v.chiselCrossVersions(crossValue)._1)
 
   def chiselPluginIvy = Some(v.chiselCrossVersions(crossValue)._2)
+
+  override def moduleDeps = super.moduleDeps ++ Seq(fixedpointModule)
 }
 
 object nrshgldut extends Cross[NrshglDut](v.chiselCrossVersions.keys.toSeq) {

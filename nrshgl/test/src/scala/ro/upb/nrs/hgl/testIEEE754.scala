@@ -322,3 +322,41 @@ class MyTest extends AnyFlatSpec with ChiselScalatestTester {
     }
   }
 }
+
+class TestIEEEToPosit extends AnyFlatSpec with ChiselScalatestTester {
+  behavior of "TestIEEEToPosit"
+
+  val exponent_size = 11
+  val sig_size = 53
+  val rounding = RoundEven
+
+  it should "64" in {
+    test(new IEEEToPositTest(exponent_size, sig_size)) { dut =>
+        val l = 1234567890123456789L
+
+        val d = l.toDouble
+        val bits = java.lang.Double.doubleToLongBits(d)
+        
+        dut.io.ieeeDouble.poke(bits.U)
+        dut.clock.step(1)
+
+        val result = dut.io.out.peek()
+        println(s"Result: ${result.litValue.toString(16)}")
+    }
+  }
+
+  it should "32" in {
+    test(new IEEEToPositTest(8, 24)) { dut =>
+        val l = 1234567890123456789L
+
+        val d = l.toFloat
+        val bits = java.lang.Float.floatToIntBits(d)
+        
+        dut.io.ieeeDouble.poke(bits.U)
+        dut.clock.step(1)
+
+        val result = dut.io.out.peek()
+        println(s"Result: ${result.litValue.toString(16)}")
+    }
+  }
+}

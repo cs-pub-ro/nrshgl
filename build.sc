@@ -31,6 +31,10 @@ trait FixedPoint
 
   override def millSourcePath = os.pwd / "fixedpoint"
 
+  override def sources = T.sources {
+    Seq(PathRef(millSourcePath / "src" / "main" / "scala"))
+  }
+
   def chiselModule = None
 
   def chiselPluginJar = None

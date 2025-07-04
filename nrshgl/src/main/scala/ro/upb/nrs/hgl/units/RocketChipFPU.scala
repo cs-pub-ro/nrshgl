@@ -32,7 +32,7 @@ object NRS_IEEE754 extends NRS {
   }
 
   override def getEncoder(expWidth : Int, sigWidth : Int, internalExponentSize : Option[Int] = None, internalFractionSize : Option[Int] = None) : EncoderFloatingPoint = {
-    new EncoderIEEE754(expWidth, sigWidth - 1, None, internalExponentSize.getOrElse(getInternalExponentSize(expWidth, sigWidth)),
+    new EncoderIEEE754(expWidth, sigWidth - 1, Some(RoundEven), internalExponentSize.getOrElse(getInternalExponentSize(expWidth, sigWidth)),
       internalFractionSize.getOrElse(getInternalFractionSize(expWidth, sigWidth)), expWidth + sigWidth)
   }
 

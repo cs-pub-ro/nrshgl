@@ -117,3 +117,23 @@ trait NrshglDut
     )
   }
 }
+
+object verilog
+  extends common.HasChisel {
+
+  override def scalaVersion = T(v.scala)
+
+  override def millSourcePath = os.pwd / "nrshgl"
+
+  def chiselModule = None
+
+  def chiselPluginJar = None
+
+  def chiselIvy = Some(v.chiselCrossVersions(v.defaultChiselVersion)._1)
+
+  def chiselPluginIvy = Some(v.chiselCrossVersions(v.defaultChiselVersion)._2)
+
+  def moduleDeps = super.moduleDeps ++ Seq(
+    nrshgl(v.defaultChiselVersion)
+  )
+}

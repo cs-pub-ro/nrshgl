@@ -17,6 +17,7 @@
           deps = with pkgs; [
             git
             mill
+            circt
           ];
         in
         {

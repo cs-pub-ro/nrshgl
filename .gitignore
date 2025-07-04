@@ -3,3 +3,4 @@ out/*
 .bsp/*
 .metals/*
 test_run_dir/*
+generated-verilog/*

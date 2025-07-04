@@ -1,6 +1,7 @@
 import coursier.Repository
 import mill._
 import mill.scalalib._
+import mill.scalalib.publish._
 
 trait HasChisel
   extends ScalaModule {
@@ -26,4 +27,15 @@ trait HasChisel
 }
 
 trait NrshglModule
-  extends HasChisel
+  extends HasChisel {
+    def fixedpointModule: ScalaModule
+
+    override def moduleDeps = super.moduleDeps ++ Seq(fixedpointModule)
+  }
+
+trait FixedPointModule
+  extends HasChisel {
+    override def sources = T.sources {
+        Seq(PathRef(millSourcePath / "src" / "main" / "scala"))
+    }
+  }

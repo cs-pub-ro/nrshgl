@@ -370,7 +370,8 @@ class EncoderMorrisHEB(
     } .elsewhen(underflow) {
         io.binary := Fill(size, 0.U(1.W))
     } .otherwise {
-        val exponentMSBZero = Wire(UInt((log2Ceil(gSize+2)).W))
+        // leading zeros of the whole internal exponent, needs its full width
+        val exponentMSBZero = Wire(UInt((log2Ceil(minimumInternalExponentSize+2)).W))
         exponentMSBZero := PriorityEncoder(Reverse(floatingPoint.exponentAbsoluteValue))
         val exponentSize = Wire(UInt((gSize+1).W))
         val minusOneExponentSize = Wire(Bool())
@@ -400,7 +401,9 @@ class EncoderMorrisHEB(
         // delete MSB & ~(1.U << binaryExponentSize)
         exponentBits := ((floatingPoint.exponentAbsoluteValue >> (exponentSize - binaryExponentSize)) & ~(1.U << binaryExponentSize)) << fractionSize
         val partialBinary = Wire(UInt(size.W))
-        partialBinary := (floatingPoint.sign ## gValue ## floatingPoint.exponentSign ## Fill(size-2-gSize, 0.U(1.W))) | exponentBits | mantissaBits
+        // a zero exponent is written with its sign bit set, otherwise +-1.0 would
+        // encode as zero and NR (same convention as NRSSL)
+        partialBinary := (floatingPoint.sign ## gValue ## (floatingPoint.exponentSign || minusOneExponentSize) ## Fill(size-2-gSize, 0.U(1.W))) | exponentBits | mantissaBits
         
         //rounding
 		val roundingModule = Module(new FloatingPointRounding(softwareDebug))

@@ -1276,7 +1276,7 @@ class FloatingPointToInteger(
         } .otherwise {
             val shiftAmount = Mux(absoluteExponent >= integerSize.U, 
                                 integerSize.U - 1.U,
-                                absoluteExponent)
+                                absoluteExponent(log2Ceil(integerSize), 0))
 
             val shiftedMantissa = io.floatingPoint.mantissa << shiftAmount
 
